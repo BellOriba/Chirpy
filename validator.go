@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -21,16 +22,32 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type validChirp struct {
-		Valid bool `json:"valid"`
-	}
-
 	if utf8.RuneCountInString(chirp.Body) > 140 {
 		respondWithError(w, 400, "Chirp is too long")
-	} else {
-		type validChirp struct {
-			Valid bool `json:"valid"`
-		}
-		respondWithJSON(w, 200, validChirp{Valid: true})
 	}
+
+	type validChirp struct {
+		CleanedBody string `json:"cleaned_body"`
+	}
+
+	cleanChirp := checkProfane(chirp.Body)
+	respondWithJSON(w, 200, validChirp{CleanedBody: cleanChirp})
+}
+
+func checkProfane(s string) string {
+	profaneWords := [...]string{"kerfuffle", "sharbert", "fornax"}
+	sus := strings.Split(s, " ")
+	ls := strings.ToLower(s)
+	sls := strings.Split(ls, " ")
+	
+	for idx, word := range sls {
+		for _, profaneW := range profaneWords {
+			if word == profaneW {
+				sus[idx] = "****"
+			}
+		}
+	}
+
+	fs := strings.Join(sus, " ")
+	return fs
 }
