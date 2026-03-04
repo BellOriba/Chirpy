@@ -51,6 +51,42 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 	respondWithJSON(w, 201, chirp)
 }
 
+func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.dbQueries.GetAllChirps(r.Context())
+	if err != nil {
+		log.Printf("Error retrieving chirps: %s", err)
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	respondWithJSON(w, 200, chirps)
+}
+
+func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+	if chirpID == "" {
+		log.Printf("No chirpID found")
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	chirpUUID, err := uuid.Parse(chirpID)
+	if err != nil {
+		log.Printf("Error parsing chirpID: %s", err)
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), chirpUUID)
+	if err != nil {
+		log.Printf("Chirp not found: %s", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	respondWithJSON(w, 200, chirp)
+}
+
 func checkProfane(s string) string {
 	profaneWords := [...]string{"kerfuffle", "sharbert", "fornax"}
 	sus := strings.Split(s, " ")
