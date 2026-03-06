@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/BellOriba/Chirpy/internal/auth"
 	"github.com/BellOriba/Chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -21,6 +22,25 @@ type Chirp struct {
 }
 
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
+	bearer, err:= auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Error getting bearer token: %s", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	validBearer, err := auth.ValidateJWT(bearer, cfg.jwt_secret)
+	if err != nil {
+		log.Printf("Error validating token: %s", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if validBearer == uuid.Nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	type newChirps struct {
 		Body string `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
@@ -28,7 +48,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
 	decoder := json.NewDecoder(r.Body)
 	newChirp := newChirps{}
-	err := decoder.Decode(&newChirp)
+	err = decoder.Decode(&newChirp)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		respondWithError(w, 500, "Something went wrong")
@@ -41,7 +61,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
 	newChirp.Body = checkProfane(newChirp.Body)
 
-	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{Body: newChirp.Body, UserID: newChirp.UserID})
+	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{Body: newChirp.Body, UserID: validBearer})
 	if err != nil {
 		log.Printf("Error creating new chirp: %s", err)
 		respondWithError(w, 500, "Something went wrong")
@@ -85,6 +105,62 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, 200, chirp)
+}
+
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	bearer, err:= auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Error getting bearer token: %s", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	validBearer, err := auth.ValidateJWT(bearer, cfg.jwt_secret)
+	if err != nil {
+		log.Printf("Error validating token: %s", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if validBearer == uuid.Nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	chirpID := r.PathValue("chirpID")
+	if chirpID == "" {
+		log.Printf("No chirpID found")
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	chirpUUID, err := uuid.Parse(chirpID)
+	if err != nil {
+		log.Printf("Error parsing chirpID: %s", err)
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), chirpUUID)
+	if err != nil {
+		log.Printf("Chirp not found: %s", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if chirp.UserID != validBearer {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	} 
+
+	err = cfg.dbQueries.DeleteChirp(r.Context(), chirpUUID)
+	if err != nil {
+		log.Printf("Error deleting chirp: %s", err)
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func checkProfane(s string) string {
