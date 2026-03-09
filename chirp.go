@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -72,37 +73,39 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
-	var chirps []database.Chirp
+	sorting := r.URL.Query().Get("sort")
+	if sorting != "desc" {
+		sorting = "asc"
+	}
+
+	var authorNullUUID uuid.NullUUID
 
 	authorID := r.URL.Query().Get("author_id")
 	if authorID != "" {
 		authorUUID, err := uuid.Parse(authorID)
 		if err != nil {
-			log.Printf("Error getting author id: %s", err)
+			log.Printf("Error parsing author id: %s", err)
 			respondWithError(w, 500, "Something went wrong")
 			return
 		}
 
-		authorNullUUID := uuid.NullUUID{
+		authorNullUUID = uuid.NullUUID{
 			UUID: authorUUID,
 			Valid: true,
 		}
-
-		chirps, err = cfg.dbQueries.GetAllChirps(r.Context(), authorNullUUID)
-		if err != nil {
-			log.Printf("Error retrieving chirps: %s", err)
-			respondWithError(w, 500, "Something went wrong")
-			return
-		}
-		respondWithJSON(w, 200, chirps)
-		return
 	}
 
-	chirps, err := cfg.dbQueries.GetAllChirps(r.Context(), uuid.NullUUID{})
+	chirps, err := cfg.dbQueries.GetAllChirps(r.Context(), authorNullUUID)
 	if err != nil {
 		log.Printf("Error retrieving chirps: %s", err)
 		respondWithError(w, 500, "Something went wrong")
 		return
+	}
+
+	if sorting == "asc" {
+		sort.Slice(chirps, func(i, j int) bool { return chirps[i].CreatedAt.After(chirps[j].CreatedAt) })
+	} else {
+		sort.Slice(chirps, func(i, j int) bool { return chirps[i].CreatedAt.Before(chirps[j].CreatedAt) })
 	}
 
 	respondWithJSON(w, 200, chirps)
