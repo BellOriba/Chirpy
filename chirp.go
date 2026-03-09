@@ -14,15 +14,15 @@ import (
 )
 
 type Chirp struct {
-	ID uuid.UUID `json:"id"`
+	ID        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Body string `json:"body"`
-	UserID uuid.UUID `json:"user_id"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
-	bearer, err:= auth.GetBearerToken(r.Header)
+	bearer, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		log.Printf("Error getting bearer token: %s", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -42,7 +42,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 	}
 
 	type newChirps struct {
-		Body string `json:"body"`
+		Body   string    `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
 	}
 
@@ -108,7 +108,7 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
-	bearer, err:= auth.GetBearerToken(r.Header)
+	bearer, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		log.Printf("Error getting bearer token: %s", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -151,7 +151,7 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request)
 	if chirp.UserID != validBearer {
 		w.WriteHeader(http.StatusForbidden)
 		return
-	} 
+	}
 
 	err = cfg.dbQueries.DeleteChirp(r.Context(), chirpUUID)
 	if err != nil {
@@ -180,4 +180,3 @@ func checkProfane(s string) string {
 	fs := strings.Join(sus, " ")
 	return fs
 }
-

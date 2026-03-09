@@ -10,10 +10,10 @@ import (
 )
 
 type RefreshToken struct {
-	Token string `json:"token"`
+	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	UserID uuid.UUID `json:"user_id"`
+	UserID    uuid.UUID `json:"user_id"`
 	ExpiresAt time.Time `json:"expires_at"`
 	RevokedAt time.Time `json:"revoked_at"`
 }
@@ -43,14 +43,14 @@ func (cfg *apiConfig) handlerRefreshToken(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	newJWT, err := auth.MakeJWT(token.UserID, cfg.jwt_secret, time.Hour * 1)
+	newJWT, err := auth.MakeJWT(token.UserID, cfg.jwt_secret, time.Hour*1)
 	if err != nil {
 		log.Printf("Error generating new JWT: %s", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	respondWithJSON(w, 200, struct{
+	respondWithJSON(w, 200, struct {
 		Token string `json:"token"`
 	}{
 		Token: newJWT,

@@ -13,7 +13,7 @@ import (
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type LoginParams struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
@@ -45,7 +45,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, cfg.jwt_secret, time.Hour * 1)
+	token, err := auth.MakeJWT(user.ID, cfg.jwt_secret, time.Hour*1)
 	if err != nil {
 		log.Printf("Error generation token: %s", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -54,25 +54,24 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	refreshToken := auth.MakeRefreshToken()
 	cfg.dbQueries.InsertRToken(r.Context(), database.InsertRTokenParams{
-		Token: refreshToken,
-		UserID: user.ID,
+		Token:     refreshToken,
+		UserID:    user.ID,
 		ExpiresAt: time.Now().AddDate(0, 0, 60),
 	})
 
-	respondWithJSON(w, 200, struct{
-		ID uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email string `json:"email"`
-		Token string `json:"token"`
-		RefreshToken string `json:"refresh_token"`
+	respondWithJSON(w, 200, struct {
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}{
-		ID: user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email: user.Email,
-		Token: token,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        token,
 		RefreshToken: refreshToken,
 	})
 }
-

@@ -14,9 +14,10 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	dbQueries *database.Queries
-	platform string
-	jwt_secret string
+	dbQueries      *database.Queries
+	platform       string
+	jwt_secret     string
+	polka_key      string
 }
 
 func main() {
@@ -24,7 +25,7 @@ func main() {
 	const port = "8080"
 
 	godotenv.Load()
-	
+
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -33,13 +34,14 @@ func main() {
 
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
-		dbQueries: database.New(db),
-		platform: os.Getenv("PLATFORM"),
-		jwt_secret: os.Getenv("JWT_SECRET"),
+		dbQueries:      database.New(db),
+		platform:       os.Getenv("PLATFORM"),
+		jwt_secret:     os.Getenv("JWT_SECRET"),
+		polka_key:      os.Getenv("POLKA_KEY"),
 	}
 
 	srvMux := http.NewServeMux()
-	srvMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))) 
+	srvMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 
 	srvMux.HandleFunc("GET /api/healthz", handlerReadiness)
 	srvMux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
@@ -52,15 +54,16 @@ func main() {
 	srvMux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
 	srvMux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerDeleteChirp)
 
+	srvMux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerPolkaWebhook)
+
 	srvMux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	srvMux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 
 	srv := &http.Server{
 		Handler: srvMux,
-		Addr: ":" + port,
+		Addr:    ":" + port,
 	}
 
 	log.Printf("Listening at port: %v", port)
 	log.Fatal(srv.ListenAndServe())
 }
-
