@@ -72,7 +72,33 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.dbQueries.GetAllChirps(r.Context())
+	var chirps []database.Chirp
+
+	authorID := r.URL.Query().Get("author_id")
+	if authorID != "" {
+		authorUUID, err := uuid.Parse(authorID)
+		if err != nil {
+			log.Printf("Error getting author id: %s", err)
+			respondWithError(w, 500, "Something went wrong")
+			return
+		}
+
+		authorNullUUID := uuid.NullUUID{
+			UUID: authorUUID,
+			Valid: true,
+		}
+
+		chirps, err = cfg.dbQueries.GetAllChirps(r.Context(), authorNullUUID)
+		if err != nil {
+			log.Printf("Error retrieving chirps: %s", err)
+			respondWithError(w, 500, "Something went wrong")
+			return
+		}
+		respondWithJSON(w, 200, chirps)
+		return
+	}
+
+	chirps, err := cfg.dbQueries.GetAllChirps(r.Context(), uuid.NullUUID{})
 	if err != nil {
 		log.Printf("Error retrieving chirps: %s", err)
 		respondWithError(w, 500, "Something went wrong")
